@@ -9,7 +9,7 @@ Introduce of tools as follow.
 `zbxapitool`: a tool that could modify the configuaration of Zabbix via Zabbix API.
 
 ### Usage
-**help**: `zbxapitoo`l `-h`
+**help**: `zbxapitool` `-h`
 
 **create hostgroup and action**: `zbxapitool` `-m` create `-t` hostgroup `-g` ordercenter-mysql `-a` ordercenter-mysql `-c` ordercenter
 
