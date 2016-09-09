@@ -11,16 +11,15 @@ import (
 	"strings"
 )
 
-var groupName, actionName, actionCondition, idType, filterName, methodName, screenName, graphName, graphNameList string
+var groupName, actionName, actionCondition, idType, methodName, screenName, graphName, graphNameList string
 var screenColumns, graphNameLen int
 
 func init() {
 	flag.StringVar(&groupName, "g", "", "Host group name")
 	flag.StringVar(&actionName, "a", "", "Action name (EventSource: Auto registration)")
 	flag.StringVar(&actionCondition, "c", "", "Action condition value (Host name like xxx)")
-	flag.StringVar(&methodName, "m", "", "Method name (create, get)")
-	flag.StringVar(&idType, "t", "", "ID type name")
-	flag.StringVar(&filterName, "n", "", "Source name")
+	flag.StringVar(&methodName, "m", "", "*Method name, only support: create")
+	flag.StringVar(&idType, "t", "", "*ID type name")
 	flag.StringVar(&screenName, "s", "", "Screen name")
 	flag.StringVar(&graphName, "gp", "", `Graph name,e.g: "CPU load,CPU utilization"`)
 }
@@ -214,36 +213,6 @@ func createForMonitor(token string) {
 
 }
 
-func idGet(token string) string {
-	var getJson = `{
-    		"jsonrpc": "2.0",
-    		"method": "%s.get",
-    		"params": {
-        		"output": "extend",
-        	"filter": {
-                	"name": ["%s"],
-			"selectHosts": ["hostid"]
-        		}
-    		},
-    		"auth": "%s",
-    		"id": 1
-	}`
-	idName := idType + "id"
-	getJson = fmt.Sprintf(getJson, idType, filterName, token)
-	resultJson := zabbixHttpPost(getJson)
-	var id string
-	for i, v := range resultJson.MustArray() {
-		if m, ok := v.(map[string]interface{}); ok {
-			fmt.Printf("#%d: %s: %s name: %s\n", i, idName, m[idName], m["name"])
-			//fmt.Printf("%T\n",m[idName])
-			id = m[idName].(string)
-		} else {
-			log.Fatalln("result type is not map")
-		}
-	}
-	return id
-}
-
 func hostidsGet(token string) []string {
 	hostgroupGetJson := `{
                 "jsonrpc": "2.0",
@@ -379,8 +348,6 @@ func main() {
 		createForMonitor(token)
 	} else if strings.ToLower(methodName) == "create" && strings.ToLower(idType) == "screen" {
 		screenItemCreate(token)
-	} else if strings.ToLower(methodName) == "get" {
-		idGet(token)
 	} else {
 		fmt.Println("wrong option parameter")
 	}
