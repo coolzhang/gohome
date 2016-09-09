@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -345,10 +346,20 @@ func main() {
 	token := userLogin(user, password)
 
 	if strings.ToLower(methodName) == "create" && strings.ToLower(idType) == "hostgroup" {
-		createForMonitor(token)
+		if flag.NFlag() == 5 {
+			createForMonitor(token)
+		} else {
+			fmt.Printf("%s: missing some options\n", os.Args[0])
+			fmt.Printf("Try '%s -h' for more information.\n", os.Args[0])
+		}
 	} else if strings.ToLower(methodName) == "create" && strings.ToLower(idType) == "screen" {
-		screenItemCreate(token)
+		if flag.NFlag() == 5 {
+			screenItemCreate(token)
+		} else {
+			fmt.Printf("%s: missing some options\n", os.Args[0])
+			fmt.Printf("Try '%s -h' for more information.\n", os.Args[0])
+		}
 	} else {
-		fmt.Println("wrong option parameter")
+		fmt.Println("wrong options & arguments")
 	}
 }
