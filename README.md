@@ -9,11 +9,17 @@ Introduce of tools as follow.
 `zbxapitool`: a tool that could modify the configuaration of Zabbix via Zabbix API.
 
 ### Usage
-**help**: `zbxapitool` `-h`
+**Help**:  
 
-**create hostgroup and action**: `zbxapitool` `-m` create `-t` hostgroup `-g` ordercenter-mysql `-a` ordercenter-mysql `-c` ordercenter
+    `zbxapitool` `-h`  
 
-**create screen**: `zbxapitool` `-m` create `-t` screen `-g` ordercenter-mysql `-s` ordercenter-mysql `-gp` "MySQL Connections,MySQL Queries executed"
+**Create hostgroup and action**:  
+
+    `zbxapitool` `-m` create `-t` hostgroup `-g` ordercenter-mysql `-a` ordercenter-mysql `-c` ordercenter
+
+**Create screen**:  
+
+    `zbxapitool` `-m` create `-t` screen `-g` ordercenter-mysql `-s` ordercenter-mysql `-gp` "MySQL Connections,MySQL Queries executed"
 
 ### Acknowledgement
 Many thanks to my colleague called ZhangYuchen, who is also my golang teacher :)
