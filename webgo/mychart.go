@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -123,7 +122,7 @@ func orderTotalConcurrent(start string, stop string) int {
 			}
 			var count int
 			for _, table := range tables {
-				query := "select count(*) from " + table + " where create_time >=? and create_time <=from_unixtime(?) and status in(6,20)"
+				query := "select count(*) from " + table + " where create_time >=? and create_time <=? and status in(6,20)"
 				err := ordercenterDb.QueryRow(query, start, stop).Scan(&count)
 				if err != nil {
 					log.Fatal(err)
@@ -146,7 +145,7 @@ func orderTotalConcurrent(start string, stop string) int {
 }
 
 func orderTotal(start string, stop string) int {
-	var tables = make([]string, 0)
+	var tables []string
 	for i := 0; i < 16; i++ {
 		for j := 0; j < 16; j++ {
 			tables = append(tables, ordercenterSchema+"_"+strconv.Itoa(i)+"."+ordercenterTable+"_"+strconv.Itoa(j))
@@ -155,7 +154,7 @@ func orderTotal(start string, stop string) int {
 
 	var total, count int
 	for _, table := range tables {
-		query := "select count(*) from " + table + " where create_time >=? and create_time <=from_unixtime(?) and status in(6,20)"
+		query := "select count(*) from " + table + " where create_time >=? and create_time <=? and status in(6,20)"
 		err := ordercenterDb.QueryRow(query, start, stop).Scan(&count)
 		if err != nil {
 			log.Fatal(err)
@@ -163,6 +162,49 @@ func orderTotal(start string, stop string) int {
 		total = total + count
 	}
 	return total
+}
+
+func liveInit() map[string]interface{} {
+	var tData, yData []map[string]interface{}
+	var hData []interface{}
+	var i int64
+	today := time.Now().Unix()
+	yeday := today - 86400
+	for i = -59; i <= 0; i++ {
+		tStopTime := today + i*60
+		tStartTime := today + i*60 - 60
+		yStopTime := yeday + i*60
+		yStartTime := yeday + i*60 - 60
+		tOrderCount := orderLive(fmt.Sprint(tStartTime), fmt.Sprint(tStopTime))
+		yOrderCount := orderLive(fmt.Sprint(yStartTime), fmt.Sprint(yStopTime))
+		tt := map[string]interface{}{
+			"x": tStopTime * 1000,
+			"y": tOrderCount,
+		}
+		yy := map[string]interface{}{
+			"x": tStopTime * 1000,
+			"y": yOrderCount,
+		}
+		tData = append(tData, tt)
+		yData = append(yData, yy)
+	}
+
+	date := time.Now().Local().Format("2006-01-02")
+	hour, _ := strconv.Atoi(time.Now().Local().Format("15"))
+	for i := 0; i < hour; i++ {
+		start := date + " " + strconv.Itoa(i) + ":00:00"
+		stop := date + " " + strconv.Itoa(i) + ":59:59"
+		count := orderTotal(start, stop)
+		htime := strconv.Itoa(i) + ":00"
+		hc := []interface{}{htime, count}
+		hData = append(hData, hc)
+	}
+	orderCount := map[string]interface{}{
+		"todayOrderByMin":  tData,
+		"yedayOrderByMin":  yData,
+		"totalOrderByHour": hData,
+	}
+	return orderCount
 }
 
 func trendHandler(w http.ResponseWriter, r *http.Request) {
@@ -191,19 +233,26 @@ func liveGetDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func liveHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadFile("live.html")
+	/*
+		body, err := ioutil.ReadFile("live.html")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprintf(w, string(body))
+	*/
+	t, err := template.ParseFiles("live.html")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Fprintf(w, string(body))
+	t.Execute(w, liveInit())
 }
 
 func main() {
 	defer runawayDb.Close()
 	defer ordercenterDb.Close()
-	http.HandleFunc("/trend", trendHandler)
+	http.HandleFunc("/", liveHandler)
 	http.HandleFunc("/live", liveGetDataHandler)
 	http.HandleFunc("/total", totalGetDataHandler)
-	http.HandleFunc("/", liveHandler)
+	http.HandleFunc("/trend", trendHandler)
 	http.ListenAndServe(":8080", nil)
 }
