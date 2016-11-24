@@ -25,12 +25,11 @@
 								countByMin = parseInt(count)
 							},
 							error: function(){
-								alert('error')
+								alert('Error: no data!')
 							}
 						})
 						return countByMin
 				}
-				
 				var ajaxGetCountByTotal = function(startTime, stopTime) {
 						var countByTotal;
 						$.ajax({
@@ -45,189 +44,171 @@
 								countByTotal = parseInt(count)
 							},
 							error: function(){
-								alert('error')
+								alert('Error: no data!')
 							}
 						})
 						return countByTotal
-				}
-			        Highcharts.setOptions({
-			            global: {
-			                useUTC: false
-			            }
-			        });
-			        $('#containerLive').highcharts({
-			            chart: {
-			                type: 'spline',
-			                animation: Highcharts.svg, // don't animate in old IE
-			                marginRight: 10,
-			                events: {
-			                    load: function () {
-			                        // set up the updating of the chart each second
-			                        var seriesByMin = this.series[0],
-			                            seriesByMinYday = this.series[1];
-			                        setInterval(function () {
+			}
+			Highcharts.setOptions({
+			    global: {
+			        useUTC: false
+			    }
+			});
+			$('#containerLive').highcharts({
+			    chart: {
+			        type: 'spline',
+			        animation: Highcharts.svg, // don't animate in old IE
+			        marginRight: 10,
+			        events: {
+			            load: function () {
+			                var seriesByMin = this.series[0];
+			                var seriesByMinYday = this.series[1];
+			                // set up the updating of the chart each minute
+			                setInterval(function () {
 							// today
-							var time = (new Date()).getTime(),
-							    stopTime = Math.round(time/1000),
-							    startTime = Math.round((time-60000)/1000),
-							    countByMin = ajaxGetCountByMin(startTime, stopTime);
-			                       		seriesByMin.addPoint([time, countByMin], true, true);
-							// yesterday
-							var stopTimeYday = Math.round((time-86400000)/1000),
-							    startTimeYday = Math.round((time-86400000-60000)/1000),
-							    countByMinYday = ajaxGetCountByMin(startTimeYday, stopTimeYday);
-							seriesByMinYday.addPoint([time, countByMinYday], true, true);
-			                        }, 60000);
-					    		}
-							}
-			            },
-			            title: {
-			                text: 'Live order count per minute'
-			            },
-			            xAxis: {
-			                type: 'datetime',
-			                tickPixelInterval: 250
-			            },
-			            yAxis: {
-			                title: {
-			                    text: 'Value'
-			                },
-			                plotLines: [{
-			                    value: 0,
-			                    width: 1,
-			                    color: '#808080'
-			                }]
-			            },
-			            tooltip: {
-			                formatter: function () {
-					    if (this.series.name == '昨天实时订单')
-					    {
-						var time = this.x - 86400000;
-					    }
-					    else
-					    {
-					    	var time = this.x;
-					    }
-			                    return '<b>' + this.series.name + '</b><br/>' +
-			                        Highcharts.dateFormat('%%Y-%%m-%%d %%H:%%M:%%S', time) + '<br/>' +
-			                        Highcharts.numberFormat(this.y, 2);
-					    
-					    }
-			            },
-			            legend: {
-			                enabled: false
-			            },
-			            exporting: {
-			                enabled: false
-			            },
-			            series: [{
-			                 name: '今天实时订单',
-			                 data: (function () {
-			                     	    // generate an array of count per minute
-			                     	    var data = [],
-			                     	        time = (new Date()).getTime(),
-			                     	        i;
-					     	  
-			                     	    for (i = -59; i <= 0; i += 1) {
-			                     	        var stopTime = Math.round((time+i*60000)/1000),
-					     		    startTime = Math.round((time+i*60000-60000)/1000),
-					     		    count = ajaxGetCountByMin(startTime, stopTime);
-					     		data.push({x: time+i*60000, y: count});
-			                     	    }
-			                     	    return data;
-			                     	}())
-					 }, {
-			                 name: '昨天实时订单',
-			                 data: (function () {
-			                     	    // generate an array of count per minute
-			                     	    var data = [],
-			                     	        time = (new Date()).getTime(),
-			                     	        i;
-					     	  
-			                     	    for (i = -59; i <= 0; i += 1) {
-			                     	        var stopTime = Math.round((time+i*60000-86400000)/1000),
-					     		    startTime = Math.round((time+i*60000-86400000-60000)/1000),
-					     		    count = ajaxGetCountByMin(startTime, stopTime);
-					     		data.push({x: time+i*60000, y: count});
-			                     	    }
-			                     	    return data;
-			                     	}())
-					    
-				    }]
-			        });
-			        $('#containerTotal').highcharts({
-			            chart: {
-			                type: 'spline',
-			                animation: Highcharts.svg, // don't animate in old IE
-			                marginRight: 10,
-			                events: {
-			                    load: function () {
-			                        // set up the updating of the chart each second
-			                        var seriesByTotal = this.series[0];
-						setInterval(function () {
 							var time = (new Date()).getTime();
 							var stopTime = Math.round(time/1000);
-							var mon = (new Date()).getMonth()+1;
-							var day = (new Date()).getDate();
-							var startDate = (new Date()).getFullYear()+"-"+(mon<10?"0"+mon:mon)+"-"+(day<10?"0"+day:day);
-							var countByTotal = ajaxGetCountByTotal(startDate, stopTime);
-			                       		seriesByTotal.addPoint([time, countByTotal], true, true);
-			                        }, 1800000);
-
-			                    }
-			                }
-			            },
-			            title: {
-			                text: 'Live order total count per hour'
-			            },
-			            xAxis: {
-			                type: 'datetime',
-			                tickPixelInterval: 250
-			            },
-			            yAxis: {
-			                title: {
-			                    text: 'Value'
-			                },
-			                plotLines: [{
-			                    value: 0,
-			                    width: 1,
-			                    color: '#808080'
-			                }]
-			            },
-			            tooltip: {
-			                formatter: function () {
-			                    return '<b>' + this.series.name + '</b><br/>' +
-			                        Highcharts.dateFormat('%%Y-%%m-%%d %%H:%%M:%%S', this.x) + '<br/>' +
-			                        Highcharts.numberFormat(this.y, 2);
-			                }
-			            },
-			            legend: {
-			                enabled: false
-			            },
-			            exporting: {
-			                enabled: false
-			            },
-			            series: [{
-			                name: '订单总量',
-			                data: (function () {
-			                	    // generate an array of count per hour
-			                	    var data = [];
-			                	    var time = (new Date()).getTime();
-						    var mon = (new Date()).getMonth()+1;
-						    var day = (new Date()).getDate();
-				 		    var startDate = (new Date()).getFullYear()+"-"+(mon<10?"0"+mon:mon)+"-"+(day<10?"0"+day:day);
-			                	    var i;
-						  
-			                	    for (i = -12; i <= 0; i += 1) {
-							var stopTime = Math.round((time+i*600000)/1000);
-							var count = ajaxGetCountByTotal(startDate, stopTime);
-							data.push({x: time+i*600000, y: count});
-			                	    }
-			                	    return data;
-			                	}())
-				    }]
-			        });
+							var startTime = Math.round((time-60000)/1000);
+							var countByMin = ajaxGetCountByMin(startTime, stopTime);
+			        		seriesByMin.addPoint([time, countByMin], true, true);
+							// yesterday
+							var stopTimeYday = Math.round((time-86400000)/1000);
+							var startTimeYday = Math.round((time-86400000-60000)/1000);
+							var countByMinYday = ajaxGetCountByMin(startTimeYday, stopTimeYday);
+							seriesByMinYday.addPoint([time, countByMinYday], true, true);
+							}, 60000);
+						}
+			    	}
+			    },
+			    title: {
+			        text: '实时订单统计(/min)'
+			    },
+			    xAxis: {
+			        type: 'datetime',
+			        tickPixelInterval: 250
+			    },
+			    yAxis: {
+			        title: {
+			            text: 'Value'
+			        },
+			        plotLines: [{
+			            value: 0,
+			            width: 1,
+			            color: '#808080'
+			        }]
+			    },
+			    tooltip: {
+			        formatter: function () {
+			    		if (this.series.name == '昨天实时订单') {
+							var time = this.x - 86400000;
+			    		} else {
+			    			var time = this.x;
+			    		}
+						return Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', time) + '<br>' + 
+							'<b>' + this.series.name + ': </b>' + Highcharts.numberFormat(this.y, 2);
+			    	}
+			    },
+			    legend: {
+			        enabled: false
+			    },
+			    exporting: {
+			        enabled: false
+			    },
+			    series: [{
+			        name: '当前实时订单',
+					data: {{.todayOrderByMin}}
+			    }, {
+			        name: '昨天实时订单',
+					data: {{.yedayOrderByMin}}
+				}]
 			});
+			$('#containerTotal').highcharts({
+			    chart: {
+			        type: 'column',
+			        animation: Highcharts.svg, // don't animate in old IE
+			        marginRight: 10,
+			        events: {
+			            load: function () {
+			                var seriesByTotal = this.series[0];
+							var delta = (59 - (new Date()).getMinutes()) * 60 *1000;
+			                // set up the updating of the chart each o'clock
+							setTimeout(function(){
+								var time = new Date();
+								var minute = time.getMinutes(); 	
+								var hour = time.getHours();
+								var mon = time.getMonth() + 1;
+								var day = time.getDate();
+								var dd = time.getFullYear()+"-"+(mon<10?"0"+mon:mon)+"-"+(day<10?"0"+day:day);
+								var start = dd + " " + hour + ":00:00";
+								var stop = dd + " " + hour + ":59:59";
+								var countByTotal = ajaxGetCountByTotal(start, stop);
+								seriesByTotal.addPoint([hour+":00", countByTotal], true, true);
+								setInterval(function(){
+									var time = new Date();
+									var minute = time.getMinutes(); 	
+									var hour = time.getHours();
+									var mon = time.getMonth() + 1;
+									var day = time.getDate();
+									var dd = time.getFullYear()+"-"+(mon<10?"0"+mon:mon)+"-"+(day<10?"0"+day:day);
+									var start = dd + " " + hour + ":00:00";
+									var stop = dd + " " + hour + ":59:59";
+									var countByTotal = ajaxGetCountByTotal(start, stop);
+									seriesByTotal.addPoint([hour+":00", countByTotal], true, true)
+									}, 60*60*1000)
+								},delta);
+							  }
+						}
+			    },
+			    title: {
+			        text: '整点时刻订单量(/hour)'
+			    },
+			    xAxis: {
+			        type: 'category',
+					labels: {
+						style: {
+							fontSize: '13px',
+							fontFamily: 'Verdana, sans-serif'
+						}
+					}
+			    },
+			    yAxis: {
+					min: 0,
+			        title: {
+			            text: 'Value'
+			        },
+			        plotLines: [{
+			            value: 0,
+			            width: 1,
+			            color: '#808080'
+			        }]
+			    },
+			    tooltip: {
+					pointFormat: '订单量: <b>{point.y}</b>'
+			    },
+			    legend: {
+			        enabled: false
+			    },
+			    exporting: {
+			        enabled: false
+			    },
+			    series: [{
+			        name: '整点订单量',
+					data: {{.totalOrderByHour}},
+					dataLabels: {
+						enabled: true,
+						rotation: -90,
+						color: '#FFFFFF',
+						align: 'right',
+						format: '{point.y:.0f}',
+						y: 10,
+						style: {
+							fontSize: '13px',
+							fontFamily: 'Verdana, sans-serif'
+						}
+					}
+				}]
+			});
+		});
 		</script>
 	</body>
 </html>
