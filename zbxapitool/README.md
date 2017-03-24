@@ -8,8 +8,8 @@
 
 **Create hostgroup and action**:  
 
-    # zbxapitool -m create -t hostgroup -g ordercenter-mysql -a ordercenter-mysql -c ordercenter
+    # zbxapitool -groupName testAPI -actionName testAPI -actionCondition testAPI -configType hostgroup
 
 **Create screen**:  
 
-    # zbxapitool -m create -t screen -g ordercenter-mysql -s ordercenter-mysql -gp "MySQL Connections,MySQL Queries executed"
+    # zbxapitool -screenName testScreen -graphName "CPU load,CPU utilization" -groupName testAPI -configType screen

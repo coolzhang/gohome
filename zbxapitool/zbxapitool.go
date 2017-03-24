@@ -3,36 +3,25 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/bitly/go-simplejson"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/bitly/go-simplejson"
 )
 
-var groupName, actionName, actionCondition, idType, methodName, screenName, graphName, graphNameList string
-var screenColumns, graphNameLen int
+var groupName, actionName, actionCondition, screenName, graphName, configType string
 
 func init() {
-	flag.StringVar(&groupName, "g", "", "Host group name")
-	flag.StringVar(&actionName, "a", "", "Action name (EventSource: Auto registration)")
-	flag.StringVar(&actionCondition, "c", "", "Action condition value (Host name like xxx)")
-	flag.StringVar(&methodName, "m", "", "*Method name, only support: create")
-	flag.StringVar(&idType, "t", "", "*ID type name")
-	flag.StringVar(&screenName, "s", "", "Screen name")
-	flag.StringVar(&graphName, "gp", "", `Graph name,e.g: "CPU load,CPU utilization"`)
-}
-
-func graphNameInfo() (string, int) {
-	graphNameList := strings.Split(graphName, ",")
-	for i, v := range graphNameList {
-		graphNameList[i] = fmt.Sprintf(`"%s"`, v)
-	}
-	graphNameStr := "[" + strings.Join(graphNameList, ",") + "]"
-	graphNameLen := len(graphNameList)
-	return graphNameStr, graphNameLen
+	flag.StringVar(&groupName, "groupName", "", "Host group name")
+	flag.StringVar(&actionName, "actionName", "", "Action name (EventSource: Auto registration)")
+	flag.StringVar(&actionCondition, "actionCondition", "", "Action condition value (Host name like xxx)")
+	flag.StringVar(&screenName, "screenName", "", "Screen name")
+	flag.StringVar(&graphName, "graphName", "", `Graph name,e.g: "CPU load,CPU utilization"`)
+	flag.StringVar(&configType, "configType", "", "Configure only supports: hostgroup, screen")
 }
 
 func zabbixHttpPost(jsonData string) *simplejson.Json {
@@ -47,15 +36,15 @@ func zabbixHttpPost(jsonData string) *simplejson.Json {
 	if err != nil {
 		log.Fatalf("Unmarshal json: %v", err)
 	}
-	if errJson, ok := json.CheckGet("error"); ok {
-		log.Fatal(errJson)
+	if errJSON, ok := json.CheckGet("error"); ok {
+		log.Fatal(errJSON)
 	}
-	resultJson := json.Get("result")
-	return resultJson
+	resultJSON := json.Get("result")
+	return resultJSON
 }
 
 func userLogin(user, password string) string {
-	var userLoginJson = `{
+	var userLoginJSON = `{
 		"jsonrpc": "2.0",
 		"method": "user.login",
 		"params": {
@@ -64,110 +53,134 @@ func userLogin(user, password string) string {
 		},
 		"id": 1
 	}`
-	userLoginJson = fmt.Sprintf(userLoginJson, user, password)
-	resultJson := zabbixHttpPost(userLoginJson)
-	token := resultJson.MustString()
+	userLoginJSON = fmt.Sprintf(userLoginJSON, user, password)
+	resultJSON := zabbixHttpPost(userLoginJSON)
+	token := resultJSON.MustString()
 	return token
 }
 
 func hostGroupCreate(token, groupName string) string {
-	var hostGroupCreateJson = `{
-		"jsonrpc": "2.0",
-		"method":  "hostgroup.create",
-		"params": {
-			"name": "%s"
-		},
-		"auth": "%s",
-		"id":      1
-	}`
-	hostGroupCreateJson = fmt.Sprintf(hostGroupCreateJson, groupName, token)
-	resultJson := zabbixHttpPost(hostGroupCreateJson)
-	gid := resultJson.Get("groupids").GetIndex(0).MustString()
-	return gid
-}
-
-func hostGroupExists(token, groupid string) bool {
-	var hostGroupExistsJson = `{
+	var gid string
+	exists := hostGroupExists(token, groupName)
+	//fmt.Printf("exists: %v\n", exists)
+	if !exists {
+		var hostGroupCreateJSON = `{
 			"jsonrpc": "2.0",
-			"method": "hostgroup.exists",
+			"method":  "hostgroup.create",
 			"params": {
-				"groupid": "%s"
-	    		},
-	    		"auth": "%s",
-	    		"id": 1
-	}`
-	if groupid == "" {
-		return false
-	}
-	hostGroupExistsJson = fmt.Sprintf(hostGroupExistsJson, groupid, token)
-	resultJson := zabbixHttpPost(hostGroupExistsJson)
-	ok := resultJson.MustBool()
-	return ok
-
-}
-
-func actionAutoRegCreate(token, groupid, actionName, actionCondition string) string {
-	var actionAutoRegCreateJson = `{
-	                "jsonrpc": "2.0",
-	                "method": "action.create",
-	                "params": {
-	                        "name": "%s",
-				"status": 0,
-	                        "esc_period": 0,
-	                        "eventsource": 2,
-	                        "filter": {
-					"evaltype": 0,
-	                                "conditions": [
-	                                        {
-	                                                "conditiontype": 22,
-	                                                "value": "%s",
-	                                                "operator": 2
-	                                        }
-	                                ]
-	                        },
-	                        "operations": [
-	                                {
-	                                        "operationtype": 4,
-	                                        "opgroup": [
-	                                                {
-	                                                        "groupid": "%s"
-	                                                }
-	                                        ]
-	                                }
-	
-	                        ]
+				"name": "%s"
 			},
 			"auth": "%s",
 			"id": 1
-	}`
-	actionAutoRegCreateJson = fmt.Sprintf(actionAutoRegCreateJson, actionName, actionCondition, groupid, token)
-	resultJson := zabbixHttpPost(actionAutoRegCreateJson)
-	aid := resultJson.Get("actionids").GetIndex(0).MustInt()
-	return strconv.Itoa(aid)
+		}`
+		hostGroupCreateJSON = fmt.Sprintf(hostGroupCreateJSON, groupName, token)
+		resultJSON := zabbixHttpPost(hostGroupCreateJSON)
+		gid = resultJSON.Get("groupids").GetIndex(0).MustString()
+	}
+	return gid
 }
 
-func actionAutoRegExists(token, actionid string) bool {
-	var actionAutoRegExistsJson = `{
+func hostGroupExists(token, groupName string) bool {
+	var hostGroupExistsJSON = `{
 			"jsonrpc": "2.0",
-			"method": "action.exists",
+			"method": "hostgroup.get",
 			"params": {
-				"actionid": "%s"
-	    		},
-	    		"auth": "%s",
-	    		"id": 1
+				"filter": {
+					"name": "%s"
+				}
+			},
+	    	"auth": "%s",
+	    	"id": 1
 	}`
-	if actionid == "" {
-		return false
+	hostGroupExistsJSON = fmt.Sprintf(hostGroupExistsJSON, groupName, token)
+	resultJSON := zabbixHttpPost(hostGroupExistsJSON)
+	for _, v := range resultJSON.MustArray() {
+		if res, ok := v.(map[string]interface{}); ok {
+			if _, ok := res["groupid"]; ok {
+				return true
+			}
+		} else {
+			log.Fatalln("result type is not map!")
+		}
 	}
-	actionAutoRegExistsJson = fmt.Sprintf(actionAutoRegExistsJson, actionid, token)
-	resultJson := zabbixHttpPost(actionAutoRegExistsJson)
-	ok := resultJson.MustBool()
-	return ok
+	return false
+}
 
+func actionAutoRegCreate(token, groupid, actionName, actionCondition string) string {
+	var aid string
+	exists := actionAutoRegExists(token, actionName)
+	//fmt.Printf("exists: %v\n", exists)
+	if !exists {
+		var actionAutoRegCreateJSON = `{
+		        "jsonrpc": "2.0",
+		        "method": "action.create",
+		        "params": {
+		             "name": "%s",
+					  "status": 0,
+		              "esc_period": 0,
+		              "eventsource": 2,
+		              "filter": {
+					       "evaltype": 0,
+		                   "conditions": [
+		                        {
+		                             "conditiontype": 22,
+		                             "value": "%s",
+		                             "operator": 2
+		                        }
+		                   ]    
+		              },
+		              "operations": [
+		                   {
+		                      "operationtype": 4,
+		                      "opgroup": [
+		                           {
+		                              "groupid": "%s"
+		                           }
+		                       ]
+						   }
+		
+		              ]
+				},
+				"auth": "%s",
+				"id": 1
+		}`
+		actionAutoRegCreateJSON = fmt.Sprintf(actionAutoRegCreateJSON, actionName, actionCondition, groupid, token)
+		resultJSON := zabbixHttpPost(actionAutoRegCreateJSON)
+		res := resultJSON.Get("actionids").GetIndex(0).MustInt()
+		aid = strconv.Itoa(res)
+	}
+	return aid
+}
+
+func actionAutoRegExists(token, actionName string) bool {
+	var actionAutoRegExistsJSON = `{
+			"jsonrpc": "2.0",
+			"method": "action.get",
+			"params": {
+				"filter": {
+					"eventsource": 2,
+					"name": "%s"
+				}
+	    	},
+	    	"auth": "%s",
+	    	"id": 1
+	}`
+	actionAutoRegExistsJSON = fmt.Sprintf(actionAutoRegExistsJSON, actionName, token)
+	resultJSON := zabbixHttpPost(actionAutoRegExistsJSON)
+	for _, v := range resultJSON.MustArray() {
+		if res, ok := v.(map[string]interface{}); ok {
+			if _, ok := res["actionid"]; ok {
+				return true
+			}
+		} else {
+			log.Fatalln("result type is not map!")
+		}
+	}
+	return false
 }
 
 func actionTriggerCreate(token, groupid string) string {
-	var actionTriggerCreateJson = `{
+	var actionTriggerCreateJSON = `{
 	    "jsonrpc": "2.0",
 	    "method": "action.create",
 	    "params": {
@@ -183,39 +196,20 @@ func actionTriggerCreate(token, groupid string) string {
 	                    "value": "%s"
 	                }
 	            ]
-		}
+		    }
 		},
 	    "auth": "%s",
 	    "id": 1
 	}`
-	actionTriggerCreateJson = fmt.Sprintf(actionTriggerCreateJson, groupid, token)
-	resultJson := zabbixHttpPost(actionTriggerCreateJson)
-	aid := resultJson.Get("actionids").GetIndex(0).MustInt()
+	actionTriggerCreateJSON = fmt.Sprintf(actionTriggerCreateJSON, groupid, token)
+	resultJSON := zabbixHttpPost(actionTriggerCreateJSON)
+	aid := resultJSON.Get("actionids").GetIndex(0).MustInt()
 	return strconv.Itoa(aid)
 }
 
-func createForMonitor(token string) {
-	groupid := hostGroupCreate(token, groupName)
-	autoRegActionid := actionAutoRegCreate(token, groupid, actionName, actionCondition)
-	// 无法将新组添加到报警邮件组中
-	//triggerActionid := actionTriggerCreate(token, groupid)
-
-	if ok := hostGroupExists(token, groupid); ok {
-		fmt.Printf("Host group: %s created successfully\n", groupName)
-	} else {
-		fmt.Printf("Host group: %s created unsuccessfully\n", groupName)
-	}
-
-	if ok := actionAutoRegExists(token, autoRegActionid); ok {
-		fmt.Printf("Action-AutoRegistration: %s created successfully\n", actionName)
-	} else {
-		fmt.Printf("Action-AutoRegistration: %s created unsuccessfully\n", actionName)
-	}
-
-}
-
-func hostidsGet(token string) []string {
-	hostgroupGetJson := `{
+func hostidsGet(token, groupName string) []string {
+	var hostids []string
+	var hostgroupGetJSON = `{
                 "jsonrpc": "2.0",
                 "method":  "hostgroup.get",
                 "params": {
@@ -227,14 +221,12 @@ func hostidsGet(token string) []string {
                 },
                 "auth": "%s",
                 "id":      1
-        }`
-
-	hostgroupGetJson = fmt.Sprintf(hostgroupGetJson, groupName, token)
-	resultJson := zabbixHttpPost(hostgroupGetJson)
-	for _, v := range resultJson.MustArray() {
+    }`
+	hostgroupGetJSON = fmt.Sprintf(hostgroupGetJSON, groupName, token)
+	resultJSON := zabbixHttpPost(hostgroupGetJSON)
+	for _, v := range resultJSON.MustArray() {
 		if m, ok := v.(map[string]interface{}); ok {
 			var hosts = m["hosts"].([]interface{})
-			var hostids = make([]string, 0)
 			for _, hostid := range hosts {
 				if hm, ok := hostid.(map[string]interface{}); ok {
 					hostids = append(hostids, hm["hostid"].(string))
@@ -242,16 +234,15 @@ func hostidsGet(token string) []string {
 					log.Fatalln("hostid type is not map")
 				}
 			}
-			return hostids
 		} else {
 			log.Fatalln("result type  is not map")
 		}
 	}
-	return nil
+	return hostids
 }
 
-func graphGet(token string) map[string][]string {
-	var graphGetJson = `{
+func graphGet(token, groupName, graphNames string) map[string][]string {
+	var graphGetJSON = `{
 	                "jsonrpc": "2.0",
 	                "method":  "graph.get",
 	                "params": {
@@ -264,14 +255,14 @@ func graphGet(token string) map[string][]string {
 	                "auth": "%s",
 	                "id":      1
 	}`
-
 	var graphMap = make(map[string][]string)
-	hostids := hostidsGet(token)
+	hostids := hostidsGet(token, groupName)
 	for _, hostid := range hostids {
-		graphJson := fmt.Sprintf(graphGetJson, hostid, graphNameList, token)
-		resultJson := zabbixHttpPost(graphJson)
-		graphidList := make([]string, 0)
-		for _, v := range resultJson.MustArray() {
+		graphJSON := fmt.Sprintf(graphGetJSON, hostid, graphNames, token)
+		resultJSON := zabbixHttpPost(graphJSON)
+		//graphidList := make([]string, 0)
+		var graphidList []string
+		for _, v := range resultJSON.MustArray() {
 			if m, ok := v.(map[string]interface{}); ok {
 				graphidList = append(graphidList, m["graphid"].(string))
 			} else {
@@ -283,83 +274,115 @@ func graphGet(token string) map[string][]string {
 	return graphMap
 }
 
-func screenCreate(token string) string {
-	screenCreateJson := `{
-	                "jsonrpc": "2.0",
-	                "method":  "screen.create",
-	                "params": {
-	                        "name": "%s",
-	                        "hsize": %d,
-	                        "vsize": %d
-	                },
-	                "auth": "%s",
-	                "id":      1
+func screenCreate(token, groupName, screenName string, graphNamesCount int) string {
+	var screenCreateJSON = `{
+		    "jsonrpc": "2.0",
+		    "method":  "screen.create",
+		    "params": {
+		         "name": "%s",
+		         "hsize": %d,
+		         "vsize": %d
+		    },
+		    "auth": "%s",
+		    "id":      1
 	}`
-
-	hostids := hostidsGet(token)
+	hostids := hostidsGet(token, groupName)
 	screenRows := len(hostids)
-	screenColumns := graphNameLen
-	screenCreateJson = fmt.Sprintf(screenCreateJson, screenName, screenColumns, screenRows, token)
-	resultJson := zabbixHttpPost(screenCreateJson)
-	screenid := resultJson.Get("screenids").GetIndex(0).MustString()
+	screenColumns := graphNamesCount
+	screenCreateJSON = fmt.Sprintf(screenCreateJSON, screenName, screenColumns, screenRows, token)
+	resultJSON := zabbixHttpPost(screenCreateJSON)
+	screenid := resultJSON.Get("screenids").GetIndex(0).MustString()
 	return screenid
 }
 
-func screenItemCreate(token string) {
-	var screenItemCreateJson = `{
-                "jsonrpc": "2.0",
-                "method":  "screenitem.create",
-                "params": {
-                        "screenid": %s,
-                        "resourcetype": 0,
-                        "resourceid": %s,
-                        "height": 100,
-                        "width": 500,
-                        "x": %d,
-                        "y": %d
-                },
-                "auth": "%s",
-                "id":      1
-        }`
-
-	screenid := screenCreate(token)
-	hostidGraphidMap := graphGet(token)
-	y := 0
-	screenitemidList := make([]string, 0)
-	for _, graphidList := range hostidGraphidMap {
-		for x, graphid := range graphidList {
-			itemJson := fmt.Sprintf(screenItemCreateJson, screenid, graphid, x, y, token)
-			resultJson := zabbixHttpPost(itemJson)
-			screenitemid := resultJson.Get("screenitemids").GetIndex(0).MustString()
-			screenitemidList = append(screenitemidList, screenitemid)
+func screenExists(token, screenName string) bool {
+	var screenExistsJSON = `{
+			"jsonrpc": "2.0",
+			"method": "screen.get",
+			"params": {
+				"filter": {
+					"name": "%s"
+				}
+			},
+	    	"auth": "%s",
+	    	"id": 1
+	}`
+	screenExistsJSON = fmt.Sprintf(screenExistsJSON, screenName, token)
+	resultJSON := zabbixHttpPost(screenExistsJSON)
+	for _, v := range resultJSON.MustArray() {
+		if res, ok := v.(map[string]interface{}); ok {
+			if _, ok := res["screenid"]; ok {
+				return true
+			}
+		} else {
+			log.Fatalln("result type is not map!")
 		}
-		y++
 	}
-	fmt.Printf("screenitemids: %v\n", screenitemidList)
+	return false
+}
+
+func screenItemCreate(token, groupName, screenName, graphName string) {
+	exists := screenExists(token, screenName)
+	if !exists {
+		var screenItemCreateJSON = `{
+    	            "jsonrpc": "2.0",
+    	            "method":  "screenitem.create",
+    	            "params": {
+    	                    "screenid": %s,
+    	                    "resourcetype": 0,
+    	                    "resourceid": %s,
+    	                    "height": 100,
+    	                    "width": 500,
+    	                    "x": %d,
+    	                    "y": %d
+    	            },
+    	            "auth": "%s",
+    	            "id":      1
+    	}`
+
+		graphNameList := strings.Split(graphName, ",")
+		for i, v := range graphNameList {
+			graphNameList[i] = fmt.Sprintf(`"%s"`, v)
+		}
+		graphNames := "[" + strings.Join(graphNameList, ",") + "]"
+		graphNamesCount := len(graphNameList)
+
+		screenid := screenCreate(token, groupName, screenName, graphNamesCount)
+		hostidGraphidMap := graphGet(token, groupName, graphNames)
+		y := 0
+		var screenitemidList []string
+		for _, graphidList := range hostidGraphidMap {
+			for x, graphid := range graphidList {
+				itemJSON := fmt.Sprintf(screenItemCreateJSON, screenid, graphid, x, y, token)
+				resultJSON := zabbixHttpPost(itemJSON)
+				screenitemid := resultJSON.Get("screenitemids").GetIndex(0).MustString()
+				screenitemidList = append(screenitemidList, screenitemid)
+			}
+			y++
+		}
+		//fmt.Printf("screenitemids: %v\n", screenitemidList)
+	}
 }
 
 func main() {
 	flag.Parse()
-	graphNameList, graphNameLen = graphNameInfo()
 
 	user, password := "zabbixapi", "zabbixapi"
 	token := userLogin(user, password)
-
-	if strings.ToLower(methodName) == "create" && strings.ToLower(idType) == "hostgroup" {
-		if flag.NFlag() == 5 {
-			createForMonitor(token)
-		} else {
-			fmt.Printf("%s: missing some options\n", os.Args[0])
-			fmt.Printf("Try '%s -h' for more information.\n", os.Args[0])
+	//fmt.Printf("Password: %s\n", token)
+	if flag.NFlag() == 4 {
+		if strings.ToLower(configType) == "hostgroup" {
+			groupid := hostGroupCreate(token, groupName)
+			//fmt.Printf("GroupID: %s\n", groupid)
+			actionAutoRegCreate(token, groupid, actionName, actionCondition)
+			// 无法将新组添加到报警邮件组中
+			//triggerActionid := actionTriggerCreate(token, groupid)
 		}
-	} else if strings.ToLower(methodName) == "create" && strings.ToLower(idType) == "screen" {
-		if flag.NFlag() == 5 {
-			screenItemCreate(token)
-		} else {
-			fmt.Printf("%s: missing some options\n", os.Args[0])
-			fmt.Printf("Try '%s -h' for more information.\n", os.Args[0])
+		if strings.ToLower(configType) == "screen" {
+			screenItemCreate(token, groupName, screenName, graphName)
 		}
 	} else {
-		fmt.Println("wrong options & arguments")
+		fmt.Printf("%s: missing some options\n", os.Args[0])
+		fmt.Printf("Try '%s -h' for more information.\n", os.Args[0])
 	}
 }
