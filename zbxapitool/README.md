@@ -5,6 +5,19 @@
 **Help**:  
 
     # zbxapitool -h  
+    Usage of ./zbxapitool:
+      -actionCondition string
+            Action condition value (Host name like xxx)
+      -actionName string
+            Action name (EventSource: Auto registration)
+      -configType string
+            Configure only supports: hostgroup, screen
+      -graphName string
+            Graph name,e.g: "CPU load,CPU utilization"
+      -groupName string
+            Host group name
+      -screenName string
+            Screen name
 
 **Create hostgroup and action**:  
 
