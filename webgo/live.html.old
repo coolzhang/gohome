@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+	<head>	
+		<meta charset="utf-8">
+		<script src="http://cdn.hcharts.cn/jquery/jquery-1.8.3.min.js"></script>
+		<script src="http://cdn.hcharts.cn/highcharts/highcharts.js"></script>
+		<script src="http://cdn.hcharts.cn/highcharts/modules/exporting.js"></script>
+	</head>
+	<body>
+	<div id="containerLive" style="mid-width:400px; height:400px"></div>
+	<div id="containerTotal" style="mid-width:400px; height:400px"></div>
+		<script>
+			$(function () {
+				var ajaxGetCountByMin = function(startTime, stopTime) {
+						var countByMin;
+						$.ajax({
+							type: 'post',
+							async: false,
+							url: '/live',
+							data: {
+								stoptime: stopTime,
+								starttime: startTime
+							},
+							success: function(count) {
+								countByMin = parseInt(count)
+							},
+							error: function(){
+								alert('Error: no data!')
+							}
+						})
+						return countByMin
+				}
+				
+				var ajaxGetCountByTotal = function(startTime, stopTime) {
+						var countByTotal;
+						$.ajax({
+							type: 'post',
+							async: false,
+							url: '/total',
+							data: {
+								stoptime: stopTime,
+								starttime: startTime
+							},
+							success: function(count) {
+								countByTotal = parseInt(count)
+							},
+							error: function(){
+								alert('Error: no data!')
+							}
+						})
+						return countByTotal
+				}
+			        Highcharts.setOptions({
+			            global: {
+			                useUTC: false
+			            }
+			        });
+			        $('#containerLive').highcharts({
+			            chart: {
+			                type: 'spline',
+			                animation: Highcharts.svg, // don't animate in old IE
+			                marginRight: 10,
+			                events: {
+			                    load: function () {
+			                        // set up the updating of the chart each second
+			                        var seriesByMin = this.series[0],
+			                            seriesByMinYday = this.series[1];
+			                        setInterval(function () {
+							// today
+							var time = (new Date()).getTime(),
+							    stopTime = Math.round(time/1000),
+							    startTime = Math.round((time-60000)/1000),
+							    countByMin = ajaxGetCountByMin(startTime, stopTime);
+			                       		seriesByMin.addPoint([time, countByMin], true, true);
+							// yesterday
+							var stopTimeYday = Math.round((time-86400000)/1000),
+							    startTimeYday = Math.round((time-86400000-60000)/1000),
+							    countByMinYday = ajaxGetCountByMin(startTimeYday, stopTimeYday);
+							seriesByMinYday.addPoint([time, countByMinYday], true, true);
+			                        }, 60000);
+					    		}
+							}
+			            },
+			            title: {
+			                text: 'Live order count per minute'
+			            },
+			            xAxis: {
+			                type: 'datetime',
+			                tickPixelInterval: 250
+			            },
+			            yAxis: {
+			                title: {
+			                    text: 'Value'
+			                },
+			                plotLines: [{
+			                    value: 0,
+			                    width: 1,
+			                    color: '#808080'
+			                }]
+			            },
+			            tooltip: {
+			                formatter: function () {
+					    	if (this.series.name == '昨天实时订单') {
+								var time = this.x - 86400000;
+					    	} else {
+					    		var time = this.x;
+					    	}
+			                return '<b>' + this.series.name + '</b><br/>' +
+			                    Highcharts.dateFormat('%%Y-%%m-%%d %%H:%%M:%%S', time) + '<br/>' +
+			                    Highcharts.numberFormat(this.y, 2);
+					    	}
+			            },
+			            legend: {
+			                enabled: false
+			            },
+			            exporting: {
+			                enabled: false
+			            },
+			            series: [{
+			                 name: '今天实时订单',
+			                 data: (function () {
+			                     	    // generate an array of count per minute
+			                     	    var data = [],
+			                     	        time = (new Date()).getTime(),
+			                     	        i;
+					     	  
+			                     	    for (i = -59; i <= 0; i += 1) {
+			                     	        var stopTime = Math.round((time+i*60000)/1000),
+					     		    startTime = Math.round((time+i*60000-60000)/1000),
+					     		    count = ajaxGetCountByMin(startTime, stopTime);
+					     		data.push({x: time+i*60000, y: count});
+			                     	    }
+			                     	    return data;
+			                     	}())
+					 }, {
+			                 name: '昨天实时订单',
+			                 data: (function () {
+			                     	    // generate an array of count per minute
+			                     	    var data = [],
+			                     	        time = (new Date()).getTime(),
+			                     	        i;
+					     	  
+			                     	    for (i = -59; i <= 0; i += 1) {
+			                     	        var stopTime = Math.round((time+i*60000-86400000)/1000),
+					     		    startTime = Math.round((time+i*60000-86400000-60000)/1000),
+					     		    count = ajaxGetCountByMin(startTime, stopTime);
+					     		data.push({x: time+i*60000, y: count});
+			                     	    }
+			                     	    return data;
+			                     	}())
+					    
+				    }]
+			        });
+			        $('#containerTotal').highcharts({
+			            chart: {
+			                type: 'spline',
+			                animation: Highcharts.svg, // don't animate in old IE
+			                marginRight: 10,
+			                events: {
+			                    load: function () {
+			                        // set up the updating of the chart each second
+			                        var seriesByTotal = this.series[0];
+						setInterval(function () {
+							var time = (new Date()).getTime();
+							var stopTime = Math.round(time/1000);
+							var mon = (new Date()).getMonth()+1;
+							var day = (new Date()).getDate();
+							var startDate = (new Date()).getFullYear()+"-"+(mon<10?"0"+mon:mon)+"-"+(day<10?"0"+day:day);
+							var countByTotal = ajaxGetCountByTotal(startDate, stopTime);
+			                       		seriesByTotal.addPoint([time, countByTotal], true, true);
+			                        }, 1800000);
+
+			                    }
+			                }
+			            },
+			            title: {
+			                text: 'Live order total count per 30min'
+			            },
+			            xAxis: {
+			                type: 'datetime',
+			                tickPixelInterval: 250
+			            },
+			            yAxis: {
+			                title: {
+			                    text: 'Value'
+			                },
+			                plotLines: [{
+			                    value: 0,
+			                    width: 1,
+			                    color: '#808080'
+			                }]
+			            },
+			            tooltip: {
+			                formatter: function () {
+			                    return '<b>' + this.series.name + '</b><br/>' +
+			                        Highcharts.dateFormat('%%Y-%%m-%%d %%H:%%M:%%S', this.x) + '<br/>' +
+			                        Highcharts.numberFormat(this.y, 2);
+			                }
+			            },
+			            legend: {
+			                enabled: false
+			            },
+			            exporting: {
+			                enabled: false
+			            },
+			            series: [{
+			                name: '订单总量',
+			                data: (function () {
+			                	    var data = [];
+			                	    var time = (new Date()).getTime();
+						    var mon = (new Date()).getMonth()+1;
+						    var day = (new Date()).getDate();
+				 		    var startDate = (new Date()).getFullYear()+"-"+(mon<10?"0"+mon:mon)+"-"+(day<10?"0"+day:day);
+			                	    var i;
+						  
+			                	    for (i = -12; i <= 0; i += 1) {
+							var stopTime = Math.round((time+i*600000)/1000);
+							var count = ajaxGetCountByTotal(startDate, stopTime);
+							data.push({x: time+i*600000, y: count});
+			                	    }
+			                	    return data;
+			                	}())
+				    }]
+			        });
+			});
+		</script>
+	</body>
+</html>

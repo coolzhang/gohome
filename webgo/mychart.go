@@ -204,6 +204,7 @@ func liveInit() map[string]interface{} {
 		"yedayOrderByMin":  yData,
 		"totalOrderByHour": hData,
 	}
+	//fmt.Println(orderCount["totalOrderByHour"])
 	return orderCount
 }
 
