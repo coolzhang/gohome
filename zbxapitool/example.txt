@@ -1,0 +1,4 @@
+group_name=DBA-MySQL中国用户组-redis-2016
+action_name=MySQL中国用户组-redis
+condition_like=cmug-redis
+./zbxapitool -groupName ${group_name} -actionName ${action_name} -actionCondition ${condition_like} -configType hostgroup

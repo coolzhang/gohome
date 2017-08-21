@@ -31,7 +31,7 @@ func zabbixHttpPost(jsonData string) *simplejson.Json {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	//fmt.Println(string(body))
+	fmt.Println(string(body))
 	json, err := simplejson.NewJson(body)
 	if err != nil {
 		log.Fatalf("Unmarshal json: %v", err)
@@ -62,7 +62,7 @@ func userLogin(user, password string) string {
 func hostGroupCreate(token, groupName string) string {
 	var gid string
 	exists := hostGroupExists(token, groupName)
-	//fmt.Printf("exists: %v\n", exists)
+	fmt.Printf("exists: %v\n", exists)
 	if !exists {
 		var hostGroupCreateJSON = `{
 			"jsonrpc": "2.0",
@@ -109,7 +109,7 @@ func hostGroupExists(token, groupName string) bool {
 func actionAutoRegCreate(token, groupid, actionName, actionCondition string) string {
 	var aid string
 	exists := actionAutoRegExists(token, actionName)
-	//fmt.Printf("exists: %v\n", exists)
+	fmt.Printf("exists: %v\n", exists)
 	if !exists {
 		var actionAutoRegCreateJSON = `{
 		        "jsonrpc": "2.0",
@@ -147,6 +147,7 @@ func actionAutoRegCreate(token, groupid, actionName, actionCondition string) str
 		actionAutoRegCreateJSON = fmt.Sprintf(actionAutoRegCreateJSON, actionName, actionCondition, groupid, token)
 		resultJSON := zabbixHttpPost(actionAutoRegCreateJSON)
 		res := resultJSON.Get("actionids").GetIndex(0).MustInt()
+		fmt.Println("actionid:", res)
 		aid = strconv.Itoa(res)
 	}
 	return aid
